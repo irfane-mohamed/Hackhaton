@@ -1,0 +1,14 @@
+name: 🎮 Godot Export
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Done
+        run: echo "Projet Crypta Obscura pushé avec succès!"
