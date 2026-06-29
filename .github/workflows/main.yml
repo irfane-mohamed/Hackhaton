@@ -5,9 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  GODOT_VERSION: "4.2.2"
-
 jobs:
   export-web:
     name: Web Export
@@ -34,6 +31,26 @@ jobs:
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html || true
 
+      - name: Inject SharedArrayBuffer fix
+        run: |
+          cat > build/web/coi-serviceworker.js << 'EOF'
+          self.addEventListener("install", () => self.skipWaiting());
+          self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
+          self.addEventListener("fetch", e => {
+            if (e.request.cache === "only-if-cached" && e.request.mode !== "same-origin") return;
+            e.respondWith(
+              fetch(e.request).then(r => {
+                const h = new Headers(r.headers);
+                h.set("Cross-Origin-Opener-Policy", "same-origin");
+                h.set("Cross-Origin-Embedder-Policy", "require-corp");
+                return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
+              })
+            );
+          });
+          EOF
+          sed -i 's|<head>|<head><script>if(!crossOriginIsolated){navigator.serviceWorker.register("coi-serviceworker.js").then(()=>location.reload())}</script>|' build/web/index.html || true
+          touch build/web/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -54,15 +71,6 @@ jobs:
         with:
           name: CryptaObscura-web
           path: web/
-
-      - name: Add headers
-        run: |
-          touch web/.nojekyll
-          cat > web/_headers << 'EOF'
-          /*
-            Cross-Origin-Opener-Policy: same-origin
-            Cross-Origin-Embedder-Policy: require-corp
-          EOF
 
       - uses: actions/upload-pages-artifact@v3
         with:
