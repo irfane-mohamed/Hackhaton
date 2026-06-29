@@ -13,7 +13,7 @@ config/name="Crypta Obscura"
 config/description="A pixel art dungeon explorer with a skill tree system."
 config/version="1.0.0"
 run/main_scene="res://scenes/Main.tscn"
-config/features=PackedStringArray("4.2", "Forward Plus")
+config/features=PackedStringArray("4.2", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
