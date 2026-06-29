@@ -3,17 +3,15 @@ extends Node2D
 
 const TILE_SIZE: int = 16
 
-# ── Tile colors (no black / no white) ──────────────────────────────────────
-const C_WALL_BASE  := Color(0.227, 0.078, 0.365)   # deep amethyst
-const C_WALL_EDGE  := Color(0.290, 0.125, 0.439)   # lighter amethyst
-const C_WALL_CRACK := Color(0.365, 0.200, 0.502)   # cracked highlight
-const C_FLOOR_A    := Color(0.145, 0.047, 0.239)   # floor variant A
-const C_FLOOR_B    := Color(0.173, 0.071, 0.267)   # floor variant B
-const C_FLOOR_DOT  := Color(0.220, 0.102, 0.325)   # subtle floor dot
-const C_FOG        := Color(0.059, 0.027, 0.110)   # near-dark purple fog
-const C_FOG_EDGE   := Color(0.086, 0.043, 0.149)   # fog edge
+const C_WALL_BASE  := Color(0.227, 0.078, 0.365)
+const C_WALL_EDGE  := Color(0.290, 0.125, 0.439)
+const C_WALL_CRACK := Color(0.365, 0.200, 0.502)
+const C_FLOOR_A    := Color(0.145, 0.047, 0.239)
+const C_FLOOR_B    := Color(0.173, 0.071, 0.267)
+const C_FLOOR_DOT  := Color(0.220, 0.102, 0.325)
+const C_FOG        := Color(0.059, 0.027, 0.110)
+const C_FOG_EDGE   := Color(0.086, 0.043, 0.149)
 
-# ── Entity colors ──────────────────────────────────────────────────────────
 const C_EXIT_DOOR  := Color(0.376, 0.627, 1.0)
 const C_EXIT_GLOW  := Color(0.220, 0.502, 0.902)
 const C_CHEST      := Color(0.251, 0.816, 0.627)
@@ -43,7 +41,7 @@ func load_dungeon(data: Dictionary) -> void:
 	for r in _rows:
 		var row := []
 		for c in _cols:
-			row.append(true)  # everything fogged
+			row.append(true)
 		_fog.append(row)
 	queue_redraw()
 
@@ -56,8 +54,8 @@ func _draw() -> void:
 
 	for r in _rows:
 		for c in _cols:
-			var x := c * TILE_SIZE
-			var y := r * TILE_SIZE
+			var x: int = c * TILE_SIZE
+			var y: int = r * TILE_SIZE
 			var rect := Rect2(x, y, TILE_SIZE, TILE_SIZE)
 
 			if _fog[r][c]:
@@ -66,20 +64,17 @@ func _draw() -> void:
 				continue
 
 			if _map[r][c] == 1:
-				# Wall
 				draw_rect(rect, C_WALL_BASE)
 				draw_rect(Rect2(x + 1, y + 1, TILE_SIZE - 2, 3), C_WALL_EDGE)
 				draw_rect(Rect2(x + 1, y + 1, 3, TILE_SIZE - 2), C_WALL_EDGE)
 				if (r + c) % 5 == 0:
 					draw_rect(Rect2(x + 4, y + 4, 2, 2), C_WALL_CRACK)
 			else:
-				# Floor
-				var alt := (r + c) % 2 == 0
+				var alt: bool = (r + c) % 2 == 0
 				draw_rect(rect, C_FLOOR_A if alt else C_FLOOR_B)
 				if alt:
 					draw_rect(Rect2(x + 7, y + 7, 2, 2), C_FLOOR_DOT)
 
-	# Draw entities
 	for i in _entities.size():
 		var e: Dictionary = _entities[i]
 		var pos: Vector2i = e["pos"]
@@ -88,8 +83,8 @@ func _draw() -> void:
 		_draw_entity(e)
 
 func _draw_entity(e: Dictionary) -> void:
-	var x := e["pos"].x * TILE_SIZE
-	var y := e["pos"].y * TILE_SIZE
+	var x: int = e["pos"].x * TILE_SIZE
+	var y: int = e["pos"].y * TILE_SIZE
 
 	match e["type"]:
 		"enemy":
@@ -99,38 +94,32 @@ func _draw_entity(e: Dictionary) -> void:
 			draw_rect(Rect2(x + 3, y + 3, 10, 4), ec.lightened(0.3))
 			draw_rect(Rect2(x + 5, y + 5, 2, 2), Color(0.8, 1.0, 0.8))
 			draw_rect(Rect2(x + 9, y + 5, 2, 2), Color(0.8, 1.0, 0.8))
-			# health bar tiny
 			var hp_frac: float = float(e.get("hp",1)) / float(e.get("max_hp",1))
 			draw_rect(Rect2(x + 1, y + 14, 14, 2), Color(0.4, 0.1, 0.1))
 			draw_rect(Rect2(x + 1, y + 14, int(14 * hp_frac), 2), Color(0.878, 0.188, 0.376))
 		"chest":
 			var open: bool = e.get("open", false)
-			var cc := C_CHEST_OPEN if open else C_CHEST
+			var cc: Color = C_CHEST_OPEN if open else C_CHEST
 			draw_rect(Rect2(x + 2, y + 7, 12, 7), cc)
 			if not open:
 				draw_rect(Rect2(x + 2, y + 6, 12, 3), cc.lightened(0.3))
 				draw_rect(Rect2(x + 6, y + 8, 4, 3), C_CHEST_BAND)
 		"shrine":
 			var used: bool = e.get("used", false)
-			var sc := C_SHRINE_OFF if used else C_SHRINE
+			var sc: Color = C_SHRINE_OFF if used else C_SHRINE
 			draw_rect(Rect2(x + 5, y + 8, 6, 7), sc)
 			draw_rect(Rect2(x + 3, y + 13, 10, 2), sc.darkened(0.2))
 			if not used:
-				# Animated glow flicker
-				var glow := abs(sin(_anim_t * 2.5)) * 0.5 + 0.3
+				var glow: float = abs(sin(_anim_t * 2.5)) * 0.5 + 0.3
 				draw_rect(Rect2(x + 7, y + 3, 2, 5), Color(C_SHRINE, glow))
 				draw_rect(Rect2(x + 5, y + 5, 6, 2), Color(C_SHRINE, glow))
 		"exit":
 			draw_rect(Rect2(x + 3, y + 2, 10, 13), C_EXIT_DOOR)
 			draw_rect(Rect2(x + 5, y + 4, 6, 9), C_EXIT_GLOW)
-			# Animated shimmer
-			var shimmer := abs(sin(_anim_t * 3.0)) * 0.4 + 0.3
+			var shimmer: float = abs(sin(_anim_t * 3.0)) * 0.4 + 0.3
 			draw_rect(Rect2(x + 5, y + 4, 6, 9), Color(1.0, 1.0, 1.0, shimmer * 0.15))
 			draw_rect(Rect2(x + 10, y + 9, 2, 3), Color(0.196, 0.251, 0.502))
 
-# ──────────────────────────────────────────────
-#  QUERIES
-# ──────────────────────────────────────────────
 func is_walkable(pos: Vector2i) -> bool:
 	if pos.x < 0 or pos.x >= _cols or pos.y < 0 or pos.y >= _rows:
 		return false
@@ -138,7 +127,7 @@ func is_walkable(pos: Vector2i) -> bool:
 
 func get_entity_at(pos: Vector2i) -> Dictionary:
 	for i in _entities.size():
-		var e := _entities[i]
+		var e: Dictionary = _entities[i]
 		if e["pos"] == pos:
 			if e["type"] == "enemy" and not e.get("alive", true):
 				continue
@@ -151,29 +140,29 @@ func get_entity_at(pos: Vector2i) -> Dictionary:
 
 func get_entity_index_at(pos: Vector2i) -> int:
 	for i in _entities.size():
-		var e := _entities[i]
+		var e: Dictionary = _entities[i]
 		if e["pos"] == pos:
 			return i
 	return -1
 
 func mark_entity_dead(pos: Vector2i) -> void:
-	var idx := get_entity_index_at(pos)
+	var idx: int = get_entity_index_at(pos)
 	if idx >= 0:
 		_entities[idx]["alive"] = false
 	queue_redraw()
 
 func mark_entity_used(pos: Vector2i, field: String = "open") -> void:
-	var idx := get_entity_index_at(pos)
+	var idx: int = get_entity_index_at(pos)
 	if idx >= 0:
 		_entities[idx][field] = true
 	queue_redraw()
 
 func reveal_fog(center: Vector2i, radius: int) -> void:
-	var r2 := radius * radius
+	var r2: int = radius * radius
 	for r in _rows:
 		for c in _cols:
-			var dx := c - center.x
-			var dy := r - center.y
+			var dx: int = c - center.x
+			var dy: int = r - center.y
 			if dx * dx + dy * dy <= r2:
 				_fog[r][c] = false
 	queue_redraw()

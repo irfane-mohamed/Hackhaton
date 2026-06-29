@@ -140,7 +140,7 @@ func _connect_signals() -> void:
 #  GAME FLOW
 # ──────────────────────────────────────────────
 func _start_floor() -> void:
-	var data := DungeonGenerator.generate(GameState.floor, GameState.luck_bonus)
+	var data: Dictionary = DungeonGenerator.generate(GameState.floor, GameState.luck_bonus)
 	_dungeon_node.load_dungeon(data)
 	_player_node.setup(_dungeon_node, data["player_spawn"])
 	_camera.position = Vector2(data["player_spawn"]) * TILE_SIZE

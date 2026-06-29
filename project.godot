@@ -1,11 +1,16 @@
 ; Engine configuration file.
 ; It's best edited using the editor UI and not directly,
-; but you can change values here.
+; since the parameters that go here are not all obvious.
+;
 ; Format:
 ;   [section] ; section goes between []
 ;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
@@ -20,14 +25,13 @@ config/icon="res://icon.svg"
 
 GameState="*res://scripts/GameState.gd"
 AudioManager="*res://scripts/AudioManager.gd"
+DungeonGenerator="*uid://w1nu2wy0v3yr"
 
 [display]
 
 window/size/viewport_width=960
 window/size/viewport_height=540
-window/size/resizable=true
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
 
 [input]
 

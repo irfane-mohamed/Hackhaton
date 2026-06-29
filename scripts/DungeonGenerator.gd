@@ -1,4 +1,4 @@
-extends RefCounted
+extends Node
 ## DungeonGenerator — BSP-based procedural dungeon.
 ## Returns a Dictionary with map array and entity spawn list.
 
