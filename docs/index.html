@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Crypta Obscura</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a0a2e; color: #e8d0ff; font-family: monospace; overflow: hidden; height: 100vh; display: flex; }
+
+#hud { width: 160px; min-width: 160px; background: #140820ee; border-right: 1px solid #7040b0; padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+#hud h3 { color: #f0c040; font-size: 12px; text-align: center; }
+.stat-row { display: flex; align-items: center; gap: 4px; font-size: 9px; color: #b090d0; }
+.bar-wrap { flex: 1; height: 7px; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s; }
+.hp-bg { background: #550f1e; } .hp-fill { background: #e04060; }
+.mp-bg { background: #0f1e55; } .mp-fill { background: #4080e0; }
+.xp-bg { background: #0f3520; } .xp-fill { background: #40d060; }
+#stats-text { font-size: 9px; color: #e8d0ff; line-height: 1.5; }
+#gold-text { font-size: 9px; color: #f0c040; }
+#log { flex: 1; overflow-y: auto; font-size: 8px; line-height: 1.4; }
+#log::-webkit-scrollbar { width: 3px; } #log::-webkit-scrollbar-thumb { background: #7040b0; }
+.log-dmg { color: #f06070; } .log-heal { color: #60f080; } .log-info { color: #a080d0; }
+.log-gold { color: #f0c040; } .log-event { color: #60d0d0; } .log-skill { color: #c080ff; }
+.log-miss { color: #a080c0; }
+#hint { font-size: 8px; color: #806090; }
+#sep { border-top: 1px solid #7040b0; margin: 2px 0; }
+
+#main { flex: 1; display: flex; flex-direction: column; position: relative; }
+canvas { display: block; image-rendering: pixelated; }
+
+#skill-panel { position: absolute; top: 0; right: 0; width: 200px; height: 100%; background: #0f042eee; border-left: 2px solid #7040b0; padding: 8px; display: none; overflow-y: auto; z-index: 10; }
+#skill-panel h3 { color: #f0c040; text-align: center; font-size: 11px; margin-bottom: 4px; }
+#skill-points { color: #40d060; font-size: 9px; text-align: center; margin-bottom: 6px; }
+.skill-row-label { color: #9060d0; font-size: 8px; text-align: center; margin: 4px 0 2px; }
+.skill-row { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.skill-btn { width: 44px; height: 44px; border-radius: 4px; border: 1px solid #5020a0; background: #320960; cursor: pointer; font-size: 7px; color: #e8d0ff; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; text-align: center; transition: all 0.15s; padding: 2px; }
+.skill-btn:hover { border-color: #f0c040; background: #50188a; }
+.skill-btn.available { background: #501890; border-color: #9060d0; }
+.skill-btn.unlocked { background: #80408a; border-color: #f0c040; color: #ffe080; }
+.skill-btn.maxed { background: #60309a; border-color: #f0c040; color: #f0c040; }
+.skill-btn.locked { opacity: 0.5; cursor: not-allowed; }
+.skill-icon { font-size: 14px; }
+
+#combat { position: absolute; inset: 0; background: #110420ee; display: none; align-items: center; justify-content: center; z-index: 20; }
+#combat-box { background: #180835; border: 2px solid #7040b0; border-radius: 8px; padding: 20px; width: 280px; text-align: center; }
+#combat-box h2 { color: #f0c040; font-size: 14px; margin-bottom: 4px; }
+#enemy-emoji { font-size: 48px; margin: 8px 0; }
+.hp-bar-wrap { height: 10px; background: #550f1e; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+#enemy-hp-bar { height: 100%; background: #e04060; border-radius: 4px; transition: width 0.3s; }
+#combat-log-line { font-size: 10px; color: #b090d0; min-height: 16px; margin: 6px 0; }
+#combat-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.combat-btn { background: #320960; border: 1px solid #7040b0; color: #e8d0ff; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 10px; font-family: monospace; transition: all 0.1s; }
+.combat-btn:hover:not(:disabled) { background: #50188a; border-color: #f0c040; }
+.combat-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#gameover { position: absolute; inset: 0; background: #0a021aee; display: none; align-items: center; justify-content: center; z-index: 30; flex-direction: column; gap: 12px; }
+#gameover h1 { color: #f06070; font-size: 28px; }
+#gameover p { color: #b090d0; font-size: 12px; }
+#restart-btn { background: #501880; border: 2px solid #f0c040; color: #f0c040; padding: 10px 24px; font-size: 13px; font-family: monospace; border-radius: 6px; cursor: pointer; }
+#restart-btn:hover { background: #7020b0; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <h3>⚔ HÉROS</h3>
+  <div id="level-floor" style="font-size:9px;color:#b090d0;text-align:center"></div>
+  <div class="stat-row">HP <div class="bar-wrap hp-bg"><div class="bar-fill hp-fill" id="hp-bar"></div></div></div>
+  <div class="stat-row">MP <div class="bar-wrap mp-bg"><div class="bar-fill mp-fill" id="mp-bar"></div></div></div>
+  <div class="stat-row">XP <div class="bar-wrap xp-bg"><div class="bar-fill xp-fill" id="xp-bar"></div></div></div>
+  <div style="border-top:1px solid #7040b0;margin:2px 0"></div>
+  <div id="stats-text"></div>
+  <div id="gold-text"></div>
+  <div style="border-top:1px solid #7040b0;margin:2px 0"></div>
+  <div style="font-size:9px;color:#f0c040">📜 JOURNAL</div>
+  <div id="log"></div>
+  <div style="border-top:1px solid #7040b0;margin:2px 0"></div>
+  <div id="hint">ZQSD/Flèches: bouger<br>K: compétences</div>
+</div>
+
+<div id="main">
+  <canvas id="canvas"></canvas>
+
+  <div id="skill-panel">
+    <h3>✦ COMPÉTENCES ✦</h3>
+    <div id="skill-points">Points: 0</div>
+  </div>
+
+  <div id="combat" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center">
+    <div id="combat-box">
+      <h2 id="enemy-name"></h2>
+      <div id="enemy-emoji"></div>
+      <div class="hp-bar-wrap"><div id="enemy-hp-bar" style="width:100%"></div></div>
+      <div id="enemy-hp-text" style="font-size:9px;color:#b090d0"></div>
+      <div id="combat-log-line"></div>
+      <div id="combat-btns">
+        <button class="combat-btn" id="btn-attack">⚔ Attaquer</button>
+        <button class="combat-btn" id="btn-heavy">💢 Frappe Lourde</button>
+        <button class="combat-btn" id="btn-spell">✨ Sort (3 MP)</button>
+        <button class="combat-btn" id="btn-shield">🛡 Bouclier</button>
+        <button class="combat-btn" id="btn-flee" style="grid-column:span 2">🏃 Fuir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameover" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+    <h1>✦ DÉFAITE ✦</h1>
+    <p>Le donjon vous a englouti...</p>
+    <button id="restart-btn" onclick="restartGame()">↺ Recommencer</button>
+  </div>
+</div>
+
+<script>
+// ─── GAME STATE ───────────────────────────────────────────────────────────────
+const GS = {
+  level:1, floor:1,
+  hp:30, maxHp:30, mp:15, maxMp:15, xp:0, xpNext:20,
+  baseAtk:5, baseDef:2, atk:5, def:2,
+  gold:0, skillPoints:0,
+  critChance:0, healAfterCombat:0, mpRegenPerCast:0, goldBonusPct:0, luckBonus:0,
+  spellUnlocked:false, heavyUnlocked:false, shieldUnlocked:false, megaSpell:false,
+  skills:{}
+};
+
+const SKILL_DEFS = [
+  {id:"str1",name:"Force I",icon:"💪",desc:"ATQ +2/nv",maxLv:3,cost:1,requires:[],row:0,col:0},
+  {id:"def1",name:"Défense I",icon:"🛡",desc:"DEF +2/nv",maxLv:3,cost:1,requires:[],row:0,col:1},
+  {id:"vit1",name:"Vitalité",icon:"❤",desc:"HP +8/nv",maxLv:3,cost:1,requires:[],row:0,col:2},
+  {id:"mag1",name:"Arcane I",icon:"✨",desc:"Sorts débloqués",maxLv:1,cost:1,requires:[],row:0,col:3},
+  {id:"str2",name:"Force II",icon:"⚔",desc:"ATQ +4, Frappe Lourde",maxLv:2,cost:2,requires:["str1"],row:1,col:0},
+  {id:"def2",name:"Armure",icon:"🏰",desc:"DEF +3, Bouclier",maxLv:2,cost:2,requires:["def1"],row:1,col:1},
+  {id:"mag2",name:"Arcane II",icon:"🔮",desc:"+1 MP/sort/nv",maxLv:2,cost:2,requires:["mag1","vit1"],row:1,col:2},
+  {id:"gold1",name:"Pillard",icon:"💰",desc:"+50% or/nv",maxLv:2,cost:1,requires:["def1"],row:1,col:3},
+  {id:"berz",name:"Berserker",icon:"🔥",desc:"ATQ +6, crit 25%",maxLv:2,cost:3,requires:["str2"],row:2,col:0},
+  {id:"palad",name:"Paladin",icon:"⭐",desc:"+3 HP/combat",maxLv:2,cost:3,requires:["def2","str1"],row:2,col:1},
+  {id:"arch",name:"Archimage",icon:"🌀",desc:"Sort ×3",maxLv:1,cost:3,requires:["mag2","str1"],row:2,col:2},
+  {id:"luck",name:"Fortune",icon:"🍀",desc:"+1 coffre/étage",maxLv:1,cost:2,requires:["gold1"],row:2,col:3},
+];
+
+function resetGS() {
+  GS.level=1; GS.floor=1;
+  GS.hp=30; GS.maxHp=30; GS.mp=15; GS.maxMp=15;
+  GS.xp=0; GS.xpNext=20; GS.baseAtk=5; GS.baseDef=2;
+  GS.gold=0; GS.skillPoints=0;
+  GS.critChance=0; GS.healAfterCombat=0; GS.mpRegenPerCast=0;
+  GS.goldBonusPct=0; GS.luckBonus=0;
+  GS.spellUnlocked=false; GS.heavyUnlocked=false;
+  GS.shieldUnlocked=false; GS.megaSpell=false;
+  GS.skills={};
+  SKILL_DEFS.forEach(s => GS.skills[s.id]=0);
+  recomputeStats();
+}
+
+function recomputeStats() {
+  GS.atk=GS.baseAtk; GS.def=GS.baseDef;
+  GS.critChance=0; GS.healAfterCombat=0; GS.mpRegenPerCast=0;
+  GS.goldBonusPct=0; GS.luckBonus=0;
+  GS.spellUnlocked=false; GS.heavyUnlocked=false;
+  GS.shieldUnlocked=false; GS.megaSpell=false;
+  const s=GS.skills;
+  GS.atk += (s.str1||0)*2;
+  GS.def += (s.def1||0)*2;
+  GS.maxHp = 30 + (s.vit1||0)*8 + GS.level*6;
+  GS.maxMp = 15 + GS.level*3;
+  if(s.mag1>=1){GS.spellUnlocked=true;}
+  if(s.str2>=1){GS.heavyUnlocked=true; GS.atk+=(s.str2||0)*4;}
+  if(s.def2>=1){GS.shieldUnlocked=true; GS.def+=(s.def2||0)*3;}
+  if(s.mag2>=1){GS.mpRegenPerCast=s.mag2;}
+  if(s.gold1>=1){GS.goldBonusPct=(s.gold1||0)*50;}
+  if(s.berz>=1){GS.atk+=(s.berz||0)*6; GS.critChance=(s.berz||0)*25;}
+  if(s.palad>=1){GS.healAfterCombat=(s.palad||0)*3;}
+  if(s.arch>=1){GS.megaSpell=true;}
+  if(s.luck>=1){GS.luckBonus=1;}
+  GS.hp=Math.min(GS.hp,GS.maxHp); GS.mp=Math.min(GS.mp,GS.maxMp);
+  updateHUD();
+}
+
+function gainXP(amt) {
+  GS.xp+=amt;
+  while(GS.xp>=GS.xpNext){
+    GS.xp-=GS.xpNext; GS.level++;
+    GS.xpNext=Math.floor(GS.xpNext*1.4);
+    GS.baseAtk++; GS.skillPoints++;
+    GS.hp=Math.min(GS.maxHp,GS.hp+6); GS.mp=Math.min(GS.maxMp,GS.mp+3);
+    recomputeStats();
+    addLog(`🎉 Niveau ${GS.level}! +1 point compétence!`,'event');
+  }
+  updateHUD();
+}
+
+function addGold(amt) {
+  const bonus=Math.floor(amt*GS.goldBonusPct/100);
+  GS.gold+=amt+bonus; updateHUD();
+}
+
+// ─── HUD ─────────────────────────────────────────────────────────────────────
+function updateHUD() {
+  const pct=(v,m)=>Math.max(0,Math.min(100,v/m*100))+'%';
+  document.getElementById('hp-bar').style.width=pct(GS.hp,GS.maxHp);
+  document.getElementById('mp-bar').style.width=pct(GS.mp,GS.maxMp);
+  document.getElementById('xp-bar').style.width=pct(GS.xp,GS.xpNext);
+  document.getElementById('level-floor').textContent=`Nv ${GS.level} — Étage ${GS.floor}`;
+  document.getElementById('stats-text').textContent=`ATQ: ${GS.atk}  DEF: ${GS.def}\nPTS: ${GS.skillPoints}`;
+  document.getElementById('gold-text').textContent=`Or: ${GS.gold}`;
+  refreshSkillPanel();
+}
+
+const logEl=document.getElementById('log');
+function addLog(msg,cls='info'){
+  const d=document.createElement('div');
+  d.className='log-'+cls; d.textContent=msg;
+  logEl.appendChild(d);
+  if(logEl.children.length>60) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop=9999;
+}
+
+// ─── DUNGEON GENERATOR ───────────────────────────────────────────────────────
+const COLS=32,ROWS=24,T_WALL=1,T_FLOOR=0;
+
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+
+function generateDungeon(floorNum,luckBonus) {
+  const map=[];
+  for(let r=0;r<ROWS;r++){map.push(new Array(COLS).fill(T_WALL));}
+
+  const rooms=[];
+  let attempts=0;
+  while(rooms.length<9&&attempts<200){
+    attempts++;
+    const w=rnd(4,8),h=rnd(4,7);
+    const x=rnd(1,COLS-w-2),y=rnd(1,ROWS-h-2);
+    const room={x,y,w,h};
+    let ok=true;
+    for(const r of rooms){
+      if(x<r.x+r.w+1&&x+w>r.x-1&&y<r.y+r.h+1&&y+h>r.y-1){ok=false;break;}
+    }
+    if(ok){
+      rooms.push(room);
+      for(let ry=y;ry<y+h;ry++) for(let rx=x;rx<x+w;rx++) map[ry][rx]=T_FLOOR;
+    }
+  }
+
+  function carve(a,b){
+    let cx=a.x,cy=a.y;
+    while(cx!==b.x){map[cy][cx]=T_FLOOR;cx+=Math.sign(b.x-cx);}
+    while(cy!==b.y){map[cy][cx]=T_FLOOR;cy+=Math.sign(b.y-cy);}
+    map[cy][cx]=T_FLOOR;
+  }
+
+  function center(r){return{x:Math.floor(r.x+r.w/2),y:Math.floor(r.y+r.h/2)};}
+
+  for(let i=1;i<rooms.length;i++) carve(center(rooms[i-1]),center(rooms[i]));
+  if(rooms.length>4){
+    const j=rnd(1,rooms.length-2);
+    carve(center(rooms[j]),center(rooms[rnd(0,j-1)]));
+  }
+
+  const tier=Math.min(2,Math.floor((floorNum-1)/2));
+  const pools=[
+    [{name:"Slime Violet",emoji:"🟣",hp:12,atk:3,xp:5,gold:2,color:"#8040cc"},{name:"Rat Spectral",emoji:"🐀",hp:8,atk:4,xp:4,gold:1,color:"#60a060"},{name:"Araignée Cryo",emoji:"🕷",hp:10,atk:3,xp:5,gold:2,color:"#40b0e0"}],
+    [{name:"Squelette",emoji:"💀",hp:18,atk:5,xp:8,gold:3,color:"#b0b080"},{name:"Liche Jr",emoji:"🧟",hp:15,atk:6,xp:9,gold:4,color:"#60c060"},{name:"Golem Rune",emoji:"🗿",hp:22,atk:4,xp:10,gold:5,color:"#9060cc"}],
+    [{name:"Démon Ardent",emoji:"😈",hp:28,atk:8,xp:14,gold:7,color:"#e04030"},{name:"Dragon Nano",emoji:"🐲",hp:35,atk:7,xp:18,gold:10,color:"#40c040"},{name:"Ombre Éternelle",emoji:"👁",hp:30,atk:9,xp:16,gold:8,color:"#8030e0"}],
+  ];
+
+  const entities=[];
+  const spawn=center(rooms[0]);
+
+  for(let i=1;i<rooms.length;i++){
+    const pos=center(rooms[i]);
+    const roll=Math.random();
+    if(i===rooms.length-1){
+      entities.push({type:"exit",pos});
+    } else if(roll<0.40){
+      const edef={...pools[tier][rnd(0,2)]};
+      edef.hp+=(floorNum-1)*3; edef.maxHp=edef.hp;
+      edef.pos=pos; edef.type="enemy"; edef.alive=true;
+      entities.push(edef);
+    } else if(roll<0.60){
+      entities.push({type:"chest",pos,gold:rnd(3,8),open:false});
+    } else {
+      entities.push({type:"shrine",pos,used:false});
+    }
+    if(luckBonus>0&&i===2){
+      const ep={x:rooms[i].x+1+rnd(0,rooms[i].w-3),y:rooms[i].y+1+rnd(0,rooms[i].h-3)};
+      entities.push({type:"chest",pos:ep,gold:rnd(2,5),open:false});
+    }
+  }
+
+  return {map,rows:ROWS,cols:COLS,playerSpawn:spawn,entities};
+}
+
+// ─── DUNGEON RENDERER ────────────────────────────────────────────────────────
+const TS=16; // tile size in pixels
+let dungeon=null, fog=null, entities=[], playerPos={x:0,y:0};
+let animT=0;
+
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+
+function resizeCanvas(){
+  const main=document.getElementById('main');
+  canvas.width=main.clientWidth;
+  canvas.height=window.innerHeight;
+}
+
+function initFog(){
+  fog=[];
+  for(let r=0;r<ROWS;r++){fog.push(new Array(COLS).fill(true));}
+}
+
+function revealFog(cx,cy,radius){
+  const r2=radius*radius;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const dx=c-cx,dy=r-cy;
+    if(dx*dx+dy*dy<=r2) fog[r][c]=false;
+  }
+}
+
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgb(${r},${g},${b})`;
+}
+
+// Camera offset so player is centered
+function getCamOffset(){
+  const vpW=canvas.width, vpH=canvas.height;
+  const scale=3;
+  return {
+    ox: vpW/2 - playerPos.x*TS*scale - TS*scale/2,
+    oy: vpH/2 - playerPos.y*TS*scale - TS*scale/2,
+    scale
+  };
+}
+
+function drawDungeon(){
+  if(!dungeon) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#0f041c';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  const {ox,oy,scale}=getCamOffset();
+  const S=TS*scale;
+
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const x=ox+c*S, y=oy+r*S;
+    if(x+S<0||y+S<0||x>canvas.width||y>canvas.height) continue;
+
+    if(fog[r][c]){
+      ctx.fillStyle='#0f0720'; ctx.fillRect(x,y,S,S);
+      ctx.fillStyle='#160b35'; ctx.fillRect(x,y,S/2,S/2);
+      continue;
+    }
+    if(dungeon.map[r][c]===1){
+      ctx.fillStyle='#3a1460'; ctx.fillRect(x,y,S,S);
+      ctx.fillStyle='#4a2070'; ctx.fillRect(x+scale,y+scale,S-2*scale,3*scale);
+      ctx.fillStyle='#4a2070'; ctx.fillRect(x+scale,y+scale,3*scale,S-2*scale);
+      if((r+c)%5===0){ctx.fillStyle='#5d3380'; ctx.fillRect(x+4*scale,y+4*scale,2*scale,2*scale);}
+    } else {
+      ctx.fillStyle=(r+c)%2===0?'#250840':'#2e0e52';
+      ctx.fillRect(x,y,S,S);
+      if((r+c)%2===0){ctx.fillStyle='#381265'; ctx.fillRect(x+7*scale,y+7*scale,2*scale,2*scale);}
+    }
+  }
+
+  // Draw entities
+  for(const e of entities){
+    const c=e.pos.x, r=e.pos.y;
+    if(r>=ROWS||c>=COLS) continue;
+    if(fog[r][c]) continue;
+    if(e.type==='enemy'&&!e.alive) continue;
+    if(e.type==='chest'&&e.open) continue;
+    if(e.type==='shrine'&&e.used) continue;
+    const x=ox+c*S, y=oy+r*S;
+    drawEntity(e,x,y,S,scale);
+  }
+
+  // Draw player
+  const px=ox+playerPos.x*S, py=oy+playerPos.y*S;
+  const bob=Math.sin(animT*4)*1.2*scale;
+  ctx.fillStyle='#804010'; ctx.fillRect(px+S*0.07,py+S*0.56+bob,S*0.19,S*0.44);
+  ctx.fillRect(px+S*0.75,py+S*0.56+bob,S*0.19,S*0.44);
+  ctx.fillStyle='#f0c040'; ctx.fillRect(px+S*0.25,py+S*0.5+bob,S*0.5,S*0.44);
+  ctx.fillStyle='#f8d870'; ctx.fillRect(px+S*0.31,py+S*0.19+bob,S*0.38,S*0.38);
+  ctx.fillStyle='#1f0f30'; ctx.fillRect(px+S*0.38,py+S*0.31+bob,S*0.13,S*0.13);
+  ctx.fillRect(px+S*0.56,py+S*0.31+bob,S*0.13,S*0.13);
+  ctx.fillStyle='#c0c0ff'; ctx.fillRect(px+S*0.81,py+S*0.44+bob,S*0.19,S*0.5);
+  ctx.fillStyle='#f0c040'; ctx.fillRect(px+S*0.75,py+S*0.63+bob,S*0.31,S*0.13);
+}
+
+function drawEntity(e,x,y,S,sc){
+  switch(e.type){
+    case 'enemy': {
+      ctx.fillStyle=e.color||'#e03060';
+      ctx.fillRect(x+3*sc,y+3*sc,10*sc,10*sc);
+      ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(x+3*sc,y+3*sc,10*sc,4*sc);
+      ctx.fillStyle='#c8ffc8'; ctx.fillRect(x+5*sc,y+5*sc,2*sc,2*sc); ctx.fillRect(x+9*sc,y+5*sc,2*sc,2*sc);
+      const hpFrac=e.hp/e.maxHp;
+      ctx.fillStyle='#660a1e'; ctx.fillRect(x+sc,y+14*sc,14*sc,2*sc);
+      ctx.fillStyle='#e03060'; ctx.fillRect(x+sc,y+14*sc,Math.floor(14*hpFrac)*sc,2*sc);
+      break;
+    }
+    case 'chest': {
+      ctx.fillStyle='#40d0a0'; ctx.fillRect(x+2*sc,y+7*sc,12*sc,7*sc);
+      ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(x+2*sc,y+6*sc,12*sc,3*sc);
+      ctx.fillStyle='#f0c040'; ctx.fillRect(x+6*sc,y+8*sc,4*sc,3*sc);
+      break;
+    }
+    case 'shrine': {
+      const glow=Math.abs(Math.sin(animT*2.5))*0.5+0.3;
+      ctx.fillStyle='#ffa040'; ctx.fillRect(x+5*sc,y+8*sc,6*sc,7*sc);
+      ctx.fillStyle='#cc7020'; ctx.fillRect(x+3*sc,y+13*sc,10*sc,2*sc);
+      ctx.fillStyle=`rgba(255,160,64,${glow})`; ctx.fillRect(x+7*sc,y+3*sc,2*sc,5*sc); ctx.fillRect(x+5*sc,y+5*sc,6*sc,2*sc);
+      break;
+    }
+    case 'exit': {
+      const sh=Math.abs(Math.sin(animT*3))*0.4+0.3;
+      ctx.fillStyle='#60a0ff'; ctx.fillRect(x+3*sc,y+2*sc,10*sc,13*sc);
+      ctx.fillStyle='#3880e8'; ctx.fillRect(x+5*sc,y+4*sc,6*sc,9*sc);
+      ctx.fillStyle=`rgba(255,255,255,${sh*0.3})`; ctx.fillRect(x+5*sc,y+4*sc,6*sc,9*sc);
+      break;
+    }
+  }
+}
+
+// ─── GAME LOOP ────────────────────────────────────────────────────────────────
+let inCombat=false, skillPanelOpen=false;
+let lastTime=0;
+
+function gameLoop(ts){
+  animT=(ts-lastTime)/1000+animT;
+  lastTime=ts;
+  if(!inCombat) drawDungeon();
+  requestAnimationFrame(gameLoop);
+}
+
+function startFloor(){
+  const data=generateDungeon(GS.floor,GS.luckBonus);
+  dungeon=data;
+  entities=data.entities.map(e=>({...e,pos:{...e.pos}}));
+  playerPos={...data.playerSpawn};
+  initFog();
+  revealFog(playerPos.x,playerPos.y,5);
+  addLog(`═══ Étage ${GS.floor} ═══`,'event');
+  addLog('Explorez le donjon — [K] pour les compétences','info');
+  updateHUD();
+}
+
+function restartGame(){
+  resetGS();
+  inCombat=false;
+  document.getElementById('gameover').style.display='none';
+  document.getElementById('combat').style.display='none';
+  startFloor();
+}
+
+// ─── MOVEMENT ─────────────────────────────────────────────────────────────────
+function tryMove(dx,dy){
+  if(inCombat) return;
+  const tx=playerPos.x+dx, ty=playerPos.y+dy;
+  if(tx<0||tx>=COLS||ty<0||ty>=ROWS) return;
+  if(dungeon.map[ty][tx]===1) return;
+
+  const entity=entities.find(e=>{
+    if(e.pos.x!==tx||e.pos.y!==ty) return false;
+    if(e.type==='enemy'&&!e.alive) return false;
+    if(e.type==='chest'&&e.open) return false;
+    if(e.type==='shrine'&&e.used) return false;
+    return true;
+  });
+
+  if(entity){
+    handleInteract(entity);
+    return;
+  }
+
+  playerPos.x=tx; playerPos.y=ty;
+  revealFog(playerPos.x,playerPos.y,5);
+}
+
+function handleInteract(e){
+  switch(e.type){
+    case 'enemy': beginCombat(e); break;
+    case 'chest':
+      e.open=true;
+      addGold(e.gold);
+      addLog(`📦 Coffre: +${e.gold} Or!`,'gold');
+      playerPos={...e.pos};
+      revealFog(playerPos.x,playerPos.y,5);
+      break;
+    case 'shrine':
+      e.used=true;
+      const rHP=Math.floor(GS.maxHp*0.4);
+      GS.hp=Math.min(GS.maxHp,GS.hp+rHP);
+      GS.mp=Math.min(GS.maxMp,GS.mp+Math.floor(GS.maxMp*0.5));
+      GS.skillPoints++;
+      addLog(`🔮 Sanctuaire: +${rHP} HP, MP restauré, +1 compétence!`,'event');
+      updateHUD();
+      playerPos={...e.pos};
+      revealFog(playerPos.x,playerPos.y,5);
+      break;
+    case 'exit':
+      GS.floor++;
+      GS.hp=Math.min(GS.maxHp,GS.hp+Math.floor(GS.maxHp*0.3));
+      GS.mp=Math.min(GS.maxMp,GS.mp+Math.floor(GS.maxMp*0.5));
+      addLog('Vous descendez plus profond...','event');
+      startFloor();
+      break;
+  }
+}
+
+// ─── COMBAT ───────────────────────────────────────────────────────────────────
+let currentEnemy=null, shieldActive=false, combatLocked=false;
+
+function beginCombat(enemy){
+  currentEnemy=enemy;
+  inCombat=true; combatLocked=false; shieldActive=false;
+  document.getElementById('enemy-name').textContent=`${enemy.emoji} ${enemy.name}`;
+  document.getElementById('enemy-emoji').textContent=enemy.emoji;
+  document.getElementById('combat-log-line').textContent=`⚔ Combat contre ${enemy.name}!`;
+  updateEnemyHP();
+  document.getElementById('combat').style.display='flex';
+  updateCombatBtns();
+}
+
+function updateEnemyHP(){
+  const pct=Math.max(0,currentEnemy.hp/currentEnemy.maxHp*100);
+  document.getElementById('enemy-hp-bar').style.width=pct+'%';
+  document.getElementById('enemy-hp-text').textContent=`${currentEnemy.hp}/${currentEnemy.maxHp} HP`;
+}
+
+function updateCombatBtns(){
+  document.getElementById('btn-heavy').disabled=!GS.heavyUnlocked||combatLocked;
+  document.getElementById('btn-spell').disabled=!GS.spellUnlocked||GS.mp<3||combatLocked;
+  document.getElementById('btn-shield').disabled=!GS.shieldUnlocked||combatLocked;
+  document.getElementById('btn-attack').disabled=combatLocked;
+  document.getElementById('btn-flee').disabled=combatLocked;
+}
+
+function combatLog(msg,cls='info'){
+  document.getElementById('combat-log-line').textContent=msg;
+  addLog(msg,cls);
+}
+
+function dealToEnemy(dmg){
+  currentEnemy.hp=Math.max(0,currentEnemy.hp-dmg);
+  updateEnemyHP();
+  if(currentEnemy.hp<=0) onEnemyDefeated();
+  else enemyTurn();
+}
+
+function enemyTurn(){
+  const effDef=GS.def*(shieldActive?2:1);
+  const raw=currentEnemy.atk||3;
+  const dmg=Math.max(0,raw-effDef);
+  shieldActive=false;
+  if(dmg===0) combatLog(`${currentEnemy.name} attaque: BLOQUÉ!`,'miss');
+  else {
+    GS.hp=Math.max(0,GS.hp-dmg);
+    updateHUD();
+    combatLog(`${currentEnemy.name}: -${dmg} HP`,'dmg');
+  }
+  if(GS.hp<=0){
+    combatLog('Vous êtes mort...','dmg');
+    setTimeout(()=>{
+      document.getElementById('combat').style.display='none';
+      document.getElementById('gameover').style.display='flex';
+    },800);
+  } else {
+    combatLocked=false;
+    updateCombatBtns();
+  }
+}
+
+function onEnemyDefeated(){
+  gainXP(currentEnemy.xp||2);
+  addGold(currentEnemy.gold||1);
+  if(GS.healAfterCombat>0){
+    GS.hp=Math.min(GS.maxHp,GS.hp+GS.healAfterCombat);
+    combatLog(`⭐ Paladin: +${GS.healAfterCombat} HP`,'heal');
+  }
+  combatLog(`${currentEnemy.name} vaincu! +${currentEnemy.xp} XP, +${currentEnemy.gold} Or`,'gold');
+  currentEnemy.alive=false;
+  setTimeout(()=>{
+    document.getElementById('combat').style.display='none';
+    inCombat=false; combatLocked=false;
+  },600);
+}
+
+document.getElementById('btn-attack').onclick=()=>{
+  if(combatLocked) return;
+  combatLocked=true; updateCombatBtns();
+  let dmg=Math.max(1,GS.atk);
+  if(Math.random()*100<GS.critChance){dmg=Math.floor(dmg*2); combatLog(`💥 CRITIQUE! ${dmg} dégâts!`,'gold');}
+  else combatLog(`⚔ Attaque: ${dmg} dégâts`,'dmg');
+  dealToEnemy(dmg);
+};
+document.getElementById('btn-heavy').onclick=()=>{
+  if(combatLocked||!GS.heavyUnlocked) return;
+  combatLocked=true; updateCombatBtns();
+  const dmg=Math.max(1,Math.floor(GS.atk*1.8));
+  combatLog(`💢 Frappe Lourde: ${dmg} dégâts!`,'gold');
+  dealToEnemy(dmg);
+};
+document.getElementById('btn-spell').onclick=()=>{
+  if(combatLocked||!GS.spellUnlocked||GS.mp<3) return;
+  combatLocked=true; updateCombatBtns();
+  GS.mp=Math.max(0,GS.mp-3+GS.mpRegenPerCast);
+  const mult=GS.megaSpell?3:1.5;
+  const dmg=Math.floor(GS.atk*mult);
+  combatLog(`✨ Sort: ${dmg} dégâts!`,'skill');
+  updateHUD();
+  dealToEnemy(dmg);
+};
+document.getElementById('btn-shield').onclick=()=>{
+  if(combatLocked||!GS.shieldUnlocked) return;
+  combatLocked=true; shieldActive=true; updateCombatBtns();
+  combatLog('🛡 Bouclier activé!','info');
+  enemyTurn();
+};
+document.getElementById('btn-flee').onclick=()=>{
+  if(combatLocked) return;
+  combatLocked=true; updateCombatBtns();
+  const chance=0.40+GS.level*0.02;
+  if(Math.random()<chance){
+    combatLog('🏃 Fuite réussie!','info');
+    setTimeout(()=>{document.getElementById('combat').style.display='none'; inCombat=false; combatLocked=false;},400);
+  } else {
+    combatLog('Fuite échouée!','miss');
+    enemyTurn();
+  }
+};
+
+// ─── SKILL PANEL ─────────────────────────────────────────────────────────────
+function buildSkillPanel(){
+  const panel=document.getElementById('skill-panel');
+  const rows={};
+  SKILL_DEFS.forEach(s=>{if(!rows[s.row]) rows[s.row]=[]; rows[s.row].push(s);});
+  const rowNames=['— Fondation —','— Intermédiaire —','— Avancé —'];
+  for(let ri=0;ri<3;ri++){
+    if(!rows[ri]) continue;
+    const lbl=document.createElement('div');
+    lbl.className='skill-row-label'; lbl.textContent=rowNames[ri];
+    panel.appendChild(lbl);
+    const row=document.createElement('div'); row.className='skill-row';
+    rows[ri].forEach(s=>{
+      const btn=document.createElement('button');
+      btn.className='skill-btn'; btn.id='skill-'+s.id;
+      btn.innerHTML=`<span class="skill-icon">${s.icon}</span><span>${s.name}</span>`;
+      btn.title=s.desc+` (Coût: ${s.cost})`;
+      btn.onclick=()=>{
+        if(canUpgrade(s)){
+          GS.skills[s.id]=(GS.skills[s.id]||0)+1;
+          GS.skillPoints-=s.cost;
+          recomputeStats();
+          addLog(`✦ ${s.name} débloqué!`,'skill');
+          refreshSkillPanel();
+        }
+      };
+      row.appendChild(btn);
+    });
+    panel.appendChild(row);
+  }
+}
+
+function canUpgrade(s){
+  const lv=GS.skills[s.id]||0;
+  if(lv>=s.maxLv) return false;
+  if(GS.skillPoints<s.cost) return false;
+  return s.requires.every(r=>(GS.skills[r]||0)>=1);
+}
+
+function refreshSkillPanel(){
+  document.getElementById('skill-points').textContent=`Points disponibles: ${GS.skillPoints}`;
+  SKILL_DEFS.forEach(s=>{
+    const btn=document.getElementById('skill-'+s.id);
+    if(!btn) return;
+    const lv=GS.skills[s.id]||0;
+    const maxed=lv>=s.maxLv;
+    const available=canUpgrade(s);
+    const reqMet=s.requires.every(r=>(GS.skills[r]||0)>=1);
+    btn.className='skill-btn'+(maxed?' maxed':available?' available':lv>0?' unlocked':reqMet?' available':' locked');
+    const dots='●'.repeat(lv)+'○'.repeat(s.maxLv-lv);
+    btn.innerHTML=`<span class="skill-icon">${s.icon}</span><span>${s.name}</span><span style="font-size:8px">${dots}</span>`;
+    btn.disabled=!available&&lv===0&&!reqMet;
+  });
+}
+
+// ─── INPUT ────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(inCombat) return;
+  switch(e.key){
+    case 'ArrowUp': case 'z': case 'Z': case 'w': case 'W': tryMove(0,-1); break;
+    case 'ArrowDown': case 's': case 'S': tryMove(0,1); break;
+    case 'ArrowLeft': case 'q': case 'Q': case 'a': case 'A': tryMove(-1,0); break;
+    case 'ArrowRight': case 'd': case 'D': tryMove(1,0); break;
+    case 'k': case 'K':
+      skillPanelOpen=!skillPanelOpen;
+      document.getElementById('skill-panel').style.display=skillPanelOpen?'block':'none';
+      break;
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{resizeCanvas(); drawDungeon();});
+resizeCanvas();
+resetGS();
+buildSkillPanel();
+startFloor();
+requestAnimationFrame(ts=>{lastTime=ts; requestAnimationFrame(gameLoop);});
+</script>
+</body>
+</html>
