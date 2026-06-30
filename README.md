@@ -1,8 +1,9 @@
 # ⚔ Crypta Obscura
 
-> Pixel-art dungeon crawler RPG with a full Skill Tree — built in **Godot 4.2**
+> Pixel-art dungeon crawler RPG with a full Skill Tree — built in **HTML5 / JavaScript (Canvas)**
 
-[![Godot Export](https://github.com/YOUR_USERNAME/crypta-obscura/actions/workflows/godot-export.yml/badge.svg)](https://github.com/YOUR_USERNAME/crypta-obscura/actions)
+🔗 **[Play it here](https://irfane-mohamed.github.io/Hackhaton/)**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 ---
@@ -64,80 +65,39 @@ TIER 2 — Advanced
 ## 🏗 Architecture
 
 ```
-crypta_obscura/
-├── project.godot          # Godot project config
-├── export_presets.cfg     # Windows / Linux / Web exports
-├── icon.svg               # Game icon
-├── scenes/
-│   └── Main.tscn          # Root scene
-├── scripts/
-│   ├── GameState.gd       # 📌 Autoload — all player data & skill logic
-│   ├── AudioManager.gd    # 📌 Autoload — procedural SFX (no audio files needed)
-│   ├── DungeonGenerator.gd# BSP procedural map generation
-│   ├── Dungeon.gd         # Map rendering + entity management + fog of war
-│   ├── Player.gd          # Pixel-art player sprite + grid movement
-│   ├── CombatSystem.gd    # Turn-based combat logic (signals-based)
-│   ├── CombatScreen.gd    # Combat overlay UI
-│   ├── SkillTreePanel.gd  # Skill tree UI with tooltips
-│   ├── HUD.gd             # HP/MP/XP bars, combat log
-│   └── Main.gd            # Scene orchestrator
-└── .github/
-    └── workflows/
-        └── godot-export.yml  # CI: build & deploy to GitHub Pages
+Hackhaton/
+└── docs/
+    └── index.html   # Entire game: HTML + CSS + JS (Canvas rendering)
 ```
 
 ### Key design decisions
 
-- **No external assets** — all graphics drawn via `_draw()` with GDScript; audio generated procedurally via `AudioStreamGenerator`
-- **Signal-driven** — combat, stats, skill unlocks all use Godot signals for clean decoupling
+- **Single-file, zero dependencies** — the whole game (rendering, combat, skill tree, dungeon generation) runs in one self-contained `index.html`, no build step needed
+- **No external assets** — all graphics drawn via Canvas 2D API (`fillRect`), no sprites/images required
 - **No black/white** — entire color palette uses amethyst/purple/gold tones only
-- **Autoloads** — `GameState` and `AudioManager` are singletons accessible globally
+- **Procedural dungeon generation** — rooms connected via corridor carving, with enemies/chests/shrines scaled by floor depth
 
 ---
 
 ## 🚀 Getting Started
 
-### Prerequisites
-
-- [Godot 4.2+](https://godotengine.org/download/) (standard, not Mono/C#)
-
 ### Run locally
 
+Just open `docs/index.html` in any modern browser — no server, no build, no install.
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/crypta-obscura.git
-cd crypta-obscura
-godot project.godot
+git clone https://github.com/irfane-mohamed/Hackhaton.git
+cd Hackhaton
+xdg-open docs/index.html   # or just double-click the file
 ```
-
-Press **F5** (or the ▶ button) to run.
-
-### Export
-
-Open **Project → Export**, select a platform preset, and click **Export Project**.
-
-The GitHub Actions workflow (`.github/workflows/godot-export.yml`) automates this on every push to `main`.
 
 ---
 
-## 🌐 GitHub Pages (Web build)
+## 🌐 GitHub Pages
 
-The CI pipeline automatically deploys the Web export to **GitHub Pages** on every push to `main`.
+The game is served directly from the `/docs` folder on the `main` branch via GitHub Pages.
 
-To enable it on your fork:
-1. Go to **Settings → Pages**
-2. Set source to **GitHub Actions**
-3. Push to `main` — the workflow handles the rest
-
----
-
-## 📦 Releases
-
-Tag a commit with `v*` to trigger an automatic GitHub Release with zipped builds for all platforms:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+🔗 **Live demo:** https://irfane-mohamed.github.io/Hackhaton/
 
 ---
 
@@ -172,8 +132,8 @@ MIT — see [LICENSE](LICENSE)
 
 PRs welcome! Ideas for extension:
 - 🗺 Minimap overlay
-- 💾 Save/load system (Godot `ConfigFile`)
+- 💾 Save/load system (`localStorage`)
 - 🎲 More enemy types & boss rooms
 - 🏆 Leaderboard (floor reached)
-- 🎵 Procedural music (extend `AudioManager`)
+- 🎵 Sound effects (Web Audio API)
 - 📱 Mobile touch controls
